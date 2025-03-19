@@ -1,3 +1,4 @@
+# D
 .dub
 docs.json
 __dummy.html
@@ -14,3 +15,6 @@ minecraft-skin-fix-test-*
 *.obj
 *.lst
 *.dll
+
+# Python
+__pycache__/

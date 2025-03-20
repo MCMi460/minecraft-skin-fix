@@ -13,12 +13,14 @@ class Proxy:
         s = a[1]
 
         # Skin/cape injector
-        if cape:
-            if s in Minecraft.Cloak.names:
-                s = Minecraft.Cloak.names[s]
-        else:
-            if s in Minecraft.Skin.names:
-                s = Minecraft.Skin.names[s]
+        i = Minecraft.Cloak.names if cape else Minecraft.Skin.names
+        src = None
+        if s in i:
+            match i[s][0]:
+                case 0:
+                    s = i[s][1]
+                case 1:
+                    src = '/texture/' + i[s][1]
 
         j = get('https://api.mojang.com/users/profiles/minecraft/' + s).json()
         uuid = j['id']
@@ -26,7 +28,7 @@ class Proxy:
         value = j['properties'][0]['value']#I hope there's only ever one
         j = loads(b64decode(value).decode('UTF-8'))
         url = j['textures']['CAPE' if cape else 'SKIN']['url']
-        return url[7:29], url[29:]
+        return url[7:29], src if src else url[29:]
 
     def handle_response(self, client, server):
         while True:
@@ -80,5 +82,6 @@ class Proxy:
             client, addr = self.server.accept()
             Thread(
                 target = self.handle_request,
-                args = (client,)
+                args = (client,),
+                daemon = True
             ).start()

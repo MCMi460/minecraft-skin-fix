@@ -1,12 +1,52 @@
-from . import search, b64decode
+from . import search, b64decode, platform, expanduser, join, loads, datetime, dumps
 
 class Minecraft:
-    def install_proxy(version:str = None):
+    def install_proxy(*, name:str = None, port:int = 46653):
         """
         Adds the proxy address and port to the most recent
         applicable version available in the default launcher
         """
-        raise NotImplementedError
+        if platform.startswith('win'):
+            path = expanduser('~/AppData/Roaming/.minecraft')
+        elif platform.startswith('darwin'):
+            path = expanduser('~/Library/Application Support/minecraft')
+        path = join(path, 'launcher_profiles.json')
+
+        with open(path, 'r') as file:
+            launcher_profiles = loads(file.read())
+        profiles = [ (i, launcher_profiles['profiles'][i]) for i in launcher_profiles['profiles'] ]
+        profiles.sort(
+            reverse = True,
+            key = lambda i : (
+                datetime.strptime(i[1]['lastUsed'].split('.')[0] + 'Z', '%Y-%m-%dT%H:%M:%SZ') - datetime(1970, 1, 1)
+            ).total_seconds()
+        )
+        target_profile = None
+        for profile in profiles:
+            version = profile[1]['lastVersionId']
+            if version.startswith('fabric') or version.startswith('latest'):
+                continue
+            if not version[0].isdigit():
+                target_profile = profile
+                break
+            else:
+                version = list(map(int, version.split('.')))
+                if version[1] <= 5:
+                    target_profile = profile
+                    break
+        if not target_profile:
+            print('No applicable profile found!')
+            return
+        
+        target_profile[1]['javaArgs'] = ('-Xmx2G -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20' +
+        ' -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M' +
+        ' -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=%d' % port)
+        launcher_profiles['profiles'][target_profile[0]] = target_profile[1]
+
+        with open(path, 'w') as file:
+            file.write(dumps(launcher_profiles))
+        
+        print('Successfully added proxy to instance %s, version %s' % (target_profile[1]['name'], target_profile[1]['lastVersionId']))
     
     def parse_head_command(command:str):
         """

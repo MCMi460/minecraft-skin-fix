@@ -9,6 +9,11 @@ class Proxy:
     
     def fetch_url(path, cape): # Code Python-ized from original @emilyploszaj project
         a = search('/Minecraft%s/([a-zA-Z0-9_]+).png' % ('Cloaks' if cape else 'Skins'), path)
+        if not a:
+            a = search(r'\/cloak\/get\.jsp\?user=([a-zA-Z0-9_]+)'
+                if cape else
+                'net/skin/([a-zA-Z0-9_]+).png', path
+            )
         if not a: raise Exception()
         s = a[1]
 
@@ -53,9 +58,9 @@ class Proxy:
         except:
             pass
         
-        if 'MinecraftSkins' in message:
+        if 'MinecraftSkins' in message or 'minecraft.net/skin/' in message:
             url = Proxy.fetch_url(message, False)
-        elif 'MinecraftCloaks' in message:
+        elif 'MinecraftCloaks' in message or 'minecraft.net/cloak/' in message:
             url = Proxy.fetch_url(message, True)
         else:
             url = None

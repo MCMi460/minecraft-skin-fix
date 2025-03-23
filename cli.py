@@ -1,4 +1,4 @@
-from skin_fix import Proxy, Minecraft
+from skin_fix import Minecraft, SkinFixer
 
 if __name__ == '__main__':
     ### Optional ###
@@ -10,5 +10,4 @@ if __name__ == '__main__':
     player.Cape.choose('Cobalt') # Or, for capes, just use its name! (See namemc.com/capes)
 
     ### Necessary ###
-    server = Proxy() # Create the localhost proxy
-    server.start() # Then start the server!
+    SkinFixer.start()

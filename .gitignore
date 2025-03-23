@@ -20,4 +20,7 @@ minecraft-skin-fix-test-*
 __pycache__/
 
 # Testing
-test.*
+test*.*
+
+# skin_fix
+hosts.dat

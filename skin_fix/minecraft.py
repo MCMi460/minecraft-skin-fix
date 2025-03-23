@@ -1,4 +1,11 @@
-from . import search, b64decode, platform, expanduser, join, loads, datetime, dumps
+from . import socket, AF_INET, SOCK_DGRAM, search, b64decode, platform, abspath, exists, expanduser, join, loads, datetime, dumps
+
+def get_ip() -> str:
+    me = socket(AF_INET, SOCK_DGRAM)
+    me.connect(('8.8.8.8', 80))
+    ip = me.getsockname()[0]
+    me.close()
+    return ip
 
 class Minecraft:
     def install_proxy(*, name:str = None, port:int = 46653):
@@ -6,6 +13,11 @@ class Minecraft:
         Adds the proxy address and port to the most recent
         applicable version available in the default launcher
         """
+        hosts_path = abspath('./hosts.dat').replace('\\', '/')
+        if not exists(hosts_path):
+            with open(hosts_path, 'w+') as file:
+                file.write(get_ip() + ' '*8 + 'skins.minecraft.net')
+
         if platform.startswith('win'):
             path = expanduser('~/AppData/Roaming/.minecraft')
         elif platform.startswith('darwin'):
@@ -22,6 +34,7 @@ class Minecraft:
             ).total_seconds()
         )
         target_profile = None
+        hosts_method = False
         for profile in profiles:
             version = profile[1]['lastVersionId']
             if version.startswith('fabric') or version.startswith('latest'):
@@ -34,19 +47,31 @@ class Minecraft:
                 if version[1] <= 5:
                     target_profile = profile
                     break
+                elif version[1] < 7 or (version[1] == 7 and version[2] <= 7):
+                    hosts_method = True
+                    target_profile = profile
+                    break
         if not target_profile:
             print('No applicable profile found!')
             return
         
-        target_profile[1]['javaArgs'] = ('-Xmx2G -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20' +
-        ' -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M' +
-        ' -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=%d' % port)
+        if 'javaArgs' not in target_profile[1].keys():
+            target_profile[1]['javaArgs'] = ('-Xmx2G -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20' +
+            ' -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M')
+        if hosts_method:
+            print('[WARNING]: The official launcher mysteriously does not work for versions 1.6-1.7.7')
+            if not '-Djdk.net.hosts.file' in target_profile[1]['javaArgs']:
+                target_profile[1]['javaArgs'] += ' -Djdk.net.hosts.file=' + hosts_path
+        else:
+            if not '-Dhttp.proxyHost' in target_profile[1]['javaArgs']:
+                target_profile[1]['javaArgs'] += ' -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=%d' % port
+        
         launcher_profiles['profiles'][target_profile[0]] = target_profile[1]
 
         with open(path, 'w') as file:
             file.write(dumps(launcher_profiles))
         
-        print('Successfully added proxy to instance %s, version %s' % (target_profile[1]['name'], target_profile[1]['lastVersionId']))
+        print('Successfully redirected traffic on instance %s, version %s' % (target_profile[1]['name'], target_profile[1]['lastVersionId']))
     
     def parse_head_command(command:str):
         """
